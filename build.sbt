@@ -7,6 +7,8 @@ scalaVersion := "2.12.3"
 libraryDependencies += "org.typelevel" %% "cats-core" % "1.0.0-RC1"
 libraryDependencies += "org.typelevel" %% "cats-free" % "1.0.0-RC1"
 libraryDependencies += "org.typelevel" %% "kittens" % "1.0.0-RC1"
+libraryDependencies += "com.github.julien-truffaut" %%  "monocle-core"  % "1.5.0-cats-M1"
+libraryDependencies += "com.github.julien-truffaut" %%  "monocle-macro"  % "1.5.0-cats-M1"
 
 //resolvers += Resolver.sonatypeRepo("releases")
 scalacOptions += "-optimise"
