@@ -7,11 +7,12 @@ https://blog.scalac.io/2016/06/02/overview-of-free-monad-in-cats.html
  */
 
 import cats._
-import cats.data.EitherK
-import cats.free.Free
+import cats.data.{EitherK, IndexedStateT, State, StateT}
+import cats.free.{Free, FreeT}
 import cats.implicits._
 import com.ctheu.cars.interpreters.CarCommandInterpreterId
 import com.ctheu.cars.{Car, Cars}
+import com.ctheu.users.Users.UserCommandState
 import com.ctheu.users._
 import com.ctheu.users.interpreters.{UsersInterpreterFuture, UsersInterpreterId, UsersInterpreterOption, UsersStateInterpreterId}
 
@@ -20,8 +21,6 @@ import scala.concurrent.duration.Duration
 
 object FreeMain extends App {
   import com.ctheu.users.dsls.Dsl._
-  import com.ctheu.users.dsls.DslK._
-  import com.ctheu.cars.dsls.DslK._
 
   def finderProgram(who: String) = for {
     _ <- create("sd")
@@ -34,6 +33,8 @@ object FreeMain extends App {
   } yield (u, l)
 
   {
+    println("-- The simple Id interpreter")
+
     // Id interpreter
     val (sd, all) = finderProgram("sd").foldMap(UsersInterpreterId)
     println(sd)
@@ -42,9 +43,8 @@ object FreeMain extends App {
     // List(User(sd), User(M. poooo))
   }
 
-  println()
-
   {
+    println("-- Same program using the Future interpreter")
     // Future interpreter
     import scala.concurrent.ExecutionContext.Implicits._
     val (sd, all) = Await.result(finderProgram("sd").foldMap(UsersInterpreterFuture), Duration.Inf)
@@ -54,9 +54,9 @@ object FreeMain extends App {
     // List(User(sd), User(M. poooo))
   }
 
-  println()
-
   {
+    println("-- Another program (all()) using different interpreters")
+
     val emptyAllProgram = all()
     import scala.concurrent.ExecutionContext.Implicits._
 
@@ -70,10 +70,9 @@ object FreeMain extends App {
     // opt=None
   }
 
-  println()
-
   {
-    // UsersStateInterpreterId only (state is provided, not internal)
+    println("-- UsersStateInterpreterId using State (the State is not part of the dsl, only of the interpreter)")
+
     println(create("sd").foldMap(UsersStateInterpreterId).run(List(User("jo"))).value)
     println(all().foldMap(UsersStateInterpreterId).run(List(User("jo"))).value)
     println(rename("sd", "toto").foldMap(UsersStateInterpreterId).run(List(User("jo"), User("sd"))).value)
@@ -87,9 +86,9 @@ object FreeMain extends App {
     // (List(User(jo), User(sd)),None)
   }
 
-  println()
-
   {
+    println("-- Frees composition")
+
     // composition
 
     // coproduct
@@ -107,6 +106,37 @@ object FreeMain extends App {
     val fullInterpreter: AllCommands ~> Id = CarCommandInterpreterId or UsersInterpreterId // the order matters!
     println(program.foldMap(fullInterpreter))
     // Car(List(User(sd)),1)
+  }
 
+  {
+    println("-- Similar to Free but using FreeT with Id")
+
+    import com.ctheu.users.dsls.DslT._
+    val program: UserCommandT[Id, Option[User]] = for {
+      _ <- create("sd")
+      _ <- rename("sd", "jo")
+      j <- find("jo")
+    } yield j
+
+    val jo: Id[Option[User]] = program.foldMap(UsersInterpreterId)
+    println(jo)
+    // Some(User(jo))
+  }
+
+  {
+    println("-- FreeT using State (the dsl forces the State)")
+
+    import com.ctheu.users.dsls.DslTState._
+    val program: UserCommandTState[Option[User]] = for {
+      _ <- create("sd")
+      _ <- rename("sd", "jo")
+      j <- find("jo")
+    } yield j
+
+    // we are using the same interpreter a before (that takes a State)
+    val jo: UserCommandState[Option[User]] = program.foldMap(UsersStateInterpreterId)
+
+    println(jo.run(List(User("po"))).value)
+    // (List(User(po), User(jo)),Some(User(jo)))
   }
 }
