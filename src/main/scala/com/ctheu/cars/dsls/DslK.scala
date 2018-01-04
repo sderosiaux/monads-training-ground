@@ -7,6 +7,7 @@ import com.ctheu.cars.Cars.{AddUser, CarCommand, Create, Move}
 import com.ctheu.users.User
 
 object DslK {
+  // InjectK basically says that we want to mix our CarCommand into the final complete language F
   class CarCommands[F[_]](implicit I: InjectK[CarCommand, F]) { // or CarCommand :<: F
     def create() = Free.inject[CarCommand, F](Create())
     def move(c: Car): Free[F, Car] = Free.inject[CarCommand, F](Move(c))
